@@ -9,7 +9,7 @@ import { LoginDto } from '../dto/auth.dto';
 
 export interface Payload {
   id: string;
-  role: UserRole;
+  role: string;
 }
 
 @Injectable()
@@ -29,20 +29,25 @@ export class AuthService {
       const existingUser = await this.userService.findUserByEmail(
         userDto.email,
       );
+
       if (existingUser) {
         throw new BadRequestException(
           `User with email ${userDto.email} already exists`,
         );
       }
+
       const password = await bcrypt.hash(userDto.passwordHash, 10);
+
       const user = await this.userService.create({
         ...userDto,
         passwordHash: password,
       });
+
       const token = await this.generateToken({
         id: user.id,
         role: user.role,
       });
+
       return { id: user.id, ...token };
     } catch (error: any) {
       throw error;
@@ -52,6 +57,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     try {
       const user = await this.userService.findUserByEmail(loginDto.email);
+
       if (!user) {
         throw new BadRequestException(
           `User with email ${loginDto.email} not found`,
@@ -61,17 +67,21 @@ export class AuthService {
       if (user.isBlocked) {
         throw new BadRequestException(`User is blocked`);
       }
+
       const isPasswordValid = await bcrypt.compare(
         loginDto.password,
         user.passwordHash,
       );
+
       if (!isPasswordValid) {
         throw new BadRequestException(`Invalid password`);
       }
+
       const token = await this.generateToken({
         id: user.id,
         role: user.role,
       });
+      
       return { id: user.id, ...token };
     } catch (error: any) {
       throw error;

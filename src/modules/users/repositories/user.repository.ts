@@ -1,75 +1,44 @@
-import { DrizzleService } from 'src/database/services/db.service';
-import { NewUser, UpdateUser } from '../types/user.type';
-import { UsersTable } from 'src/database/schema';
 import { Injectable } from '@nestjs/common';
-import { and, eq, ilike } from 'drizzle-orm';
+import { BaseRepository } from 'src/common/repositories/base.repository';
+import { DrizzleService } from 'src/database/services/db.service';
+import { UsersTable } from 'src/database/schema';
+import { NewUser } from '../types/user.type';
 import { FilterUsersDto } from '../dto/filter-users.dto';
+import { and, eq, ilike } from 'drizzle-orm';
 
 @Injectable()
-export class UserRepository {
-  constructor(private readonly dbServise: DrizzleService) {}
-
-  async createUser(newUser: NewUser) {
-    const user = await this.dbServise.db
-      .insert(UsersTable)
-      .values(newUser)
-      .returning();
-
-    return user[0];
-  }
-
-  async findUser(userId: string) {
-    const user = await this.dbServise.db
-      .select()
-      .from(UsersTable)
-      .where(eq(UsersTable.id, userId));
-
-    return user[0] ?? null;
-  }
-
-  async findByEmail(emailUser: string) {
-    const user = await this.dbServise.db
-      .select()
-      .from(UsersTable)
-      .where(eq(UsersTable.email, emailUser));
-    return user[0] ?? null;
+export class UserRepository extends BaseRepository<NewUser, typeof UsersTable> {
+  constructor(dbService: DrizzleService) {
+    super(dbService, UsersTable);
   }
 
   async findAll(filter: FilterUsersDto) {
-    let conditions = [];
+    const conditions = [];
 
     if (filter.name) {
-      conditions.push(ilike(UsersTable.name, `%${filter.name}%`));
+      conditions.push(ilike(this.table.name, `%${filter.name}%`));
     }
 
     if (typeof filter.isBlocked === 'boolean') {
-      conditions.push(eq(UsersTable.isBlocked, filter.isBlocked));
+      conditions.push(eq(this.table.isBlocked, filter.isBlocked));
     }
 
-    let query = this.dbServise.db.select().from(UsersTable);
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
+    let query = this.dbService.db.select().from(this.table);
+    if (where) query = query.where(where);
 
-    const users = await query;
-    return users;
+    return query;
   }
 
-  async updateUser(userId: string, updateData: UpdateUser) {
-    const user = await this.dbServise.db
-      .update(UsersTable)
-      .set(updateData)
-      .where(eq(UsersTable.id, userId))
-      .returning();
+  async findByEmail(email: string) {
+    const where = this.buildWhere({ email });
 
-    return user;
-  }
+    const [user] = await this.dbService.db
+      .select()
+      .from(this.table)
+      .where(where!);
 
-  async deleteUser(userId: string) {
-    return await this.dbServise.db
-      .delete(UsersTable)
-      .where(eq(UsersTable.id, userId))
-      .execute();
+    return user ?? null;
   }
 }

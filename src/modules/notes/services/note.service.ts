@@ -1,11 +1,7 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { NoteRepository } from '../repositories/note.repository';
-import { UpdateNote } from '../types/note.type';
-import { CreateNoteDto } from '../dto/note.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { CreateNoteDto } from 'src/modules/notes/dto/note.dto';
+import { NoteRepository } from 'src/modules/notes/repositories/note.repository';
+import { UpdateNote } from 'src/modules/notes/types/note.type';
 import { UserRole } from 'src/modules/users/enums/role.enum';
 import { RequestUser } from 'src/modules/users/interfaces/request-user.interface';
 
@@ -13,54 +9,66 @@ import { RequestUser } from 'src/modules/users/interfaces/request-user.interface
 export class NoteService {
   constructor(private readonly noteRepository: NoteRepository) {}
 
-  async createNote(note: CreateNoteDto, id: string) {
-    const createdNote = await this.noteRepository.createNote({
+  async createNote(note: CreateNoteDto, userId: string) {
+    return this.noteRepository.create({
       ...note,
-      userId: id,
+      userId,
     });
-    return createdNote;
   }
 
   async findNoteById(noteId: string, user: RequestUser) {
-    const note = await this.noteRepository.findNoteById(noteId);
-    this.userHasAccess(user, note.userId);
+    const note = await this.noteRepository.findByIdWithAccess(
+      noteId,
+      user.role === UserRole.ADMIN ? undefined : user.id,
+    );
 
     if (!note) {
-      return new NotFoundException(`Note with id ${noteId} not found`);
+      throw new NotFoundException(
+        `Note with id ${noteId} not found or access denied`,
+      );
     }
+
     return note;
   }
 
-  async findAllNotes(limit?: number, page?: number) {
-    return await this.noteRepository.findAllNotes(limit, page);
-  }
+  async findAll(user: RequestUser, limit?: number, page?: number) {
+    const notes = this.noteRepository.findAll({
+      userId: user.role === UserRole.ADMIN ? undefined : user.id,
+      limit,
+      page,
+    });
 
-  async findNotesByUserId(userId: string, limit?: number, page?: number) {
-    return await this.noteRepository.findNotesByUserId(userId, limit, page);
+    return notes;
   }
 
   async updateNote(noteId: string, updateData: UpdateNote, user: RequestUser) {
-    
-    const note = await this.findNoteById(noteId, user);
-    this.userHasAccess(user, note.userId);
-    if (!note) {
-      throw new NotFoundException(`Note with id ${noteId} not found`);
+    const updatedNote = await this.noteRepository.update(
+      noteId,
+      updateData,
+      user.role === UserRole.ADMIN ? undefined : { userId: user.id },
+    );
+
+    if (!updatedNote) {
+      throw new NotFoundException(
+        `Note with id ${noteId} not found or access denied`,
+      );
     }
-    return await this.noteRepository.updateNote(note.id, updateData);
+
+    return updatedNote;
   }
 
   async deleteNote(noteId: string, user: RequestUser) {
-    const note = await this.findNoteById(noteId, user);
-    this.userHasAccess(user, note.userId);
-    if (!note) {
-      throw new NotFoundException(`Note with id ${noteId} not found`);
-    }
-    return await this.noteRepository.deleteNote(note.id);
-  }
+    const result = await this.noteRepository.delete(
+      noteId,
+      user.role === UserRole.ADMIN ? undefined : { userId: user.id },
+    );
 
-  private userHasAccess(user: RequestUser, targetUserId: string) {
-    if (user.role !== UserRole.ADMIN && user.id !== targetUserId) {
-      throw new ForbiddenException('You can only access or edit your own data');
+    if (!result || result.rowCount === 0) {
+      throw new NotFoundException(
+        `Note with id ${noteId} not found or access denied`,
+      );
     }
+
+    return { message: 'Note deleted successfully' };
   }
 }

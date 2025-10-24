@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UserRole } from '../enums/role.enum';
+import { createZodDto } from 'nestjs-zod';
 
 export const createUserSchema = z.object({
   email: z.string().email(),
@@ -13,5 +14,5 @@ export const updateUserSchema = z.object({
   name: z.string().min(2).optional(),
 });
 
-export type CreateUserDto = z.infer<typeof createUserSchema>;
-export type UpdateUserDto = z.infer<typeof updateUserSchema>;
+export class CreateUserDto extends createZodDto(createUserSchema) {}
+export class UpdateUserDto extends createZodDto(updateUserSchema) {}

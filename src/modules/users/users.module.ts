@@ -3,7 +3,7 @@ import { UserRepository } from './repositories/user.repository';
 import { UserService } from './services/user.service';
 import { UserController } from './controllers/user.controller';
 import { DatabaseModule } from 'src/database/db.module';
-import { JwtConfigModule } from 'src/common/config/jwt-config.module';
+import { JwtConfigModule } from 'src/modules/jwt/jwt-config.module';
 
 @Module({
   imports: [DatabaseModule, JwtConfigModule],

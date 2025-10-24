@@ -1,4 +1,3 @@
-// paginate.ts
 import { sql } from 'drizzle-orm';
 
 export interface PaginationOptions {
@@ -37,6 +36,7 @@ export async function paginate<T>(
     return { data, page, limit, total };
   } else {
     const data = await dataQueryBuilder.execute();
+
     return { data };
   }
 }

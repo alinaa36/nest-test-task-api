@@ -11,7 +11,6 @@ import { UpdateUser, User } from '../types/user.type';
 import { UserRole } from '../enums/role.enum';
 import { RequestUser } from '../interfaces/request-user.interface';
 
-
 @Injectable()
 export class UserService {
   constructor(private readonly userRepository: UserRepository) {}
@@ -19,15 +18,17 @@ export class UserService {
   async create(newUser: CreateUserDto) {
     await this.emailIsUnique(newUser.email);
 
-    const user = await this.userRepository.createUser(newUser);
+    const user = await this.userRepository.create(newUser);
     return user;
   }
 
   async findUser(id: string) {
-    const user = await this.userRepository.findUser(id);
+    const user = await this.userRepository.findById(id);
+
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
+
     return user;
   }
 
@@ -43,35 +44,40 @@ export class UserService {
 
   async updateUser(userId: string, updateData: UpdateUser, user: RequestUser) {
     this.userHasAccess(user, userId);
-    await this.findUser(userId);
 
     if (updateData.email) {
       await this.emailIsUnique(updateData.email, userId);
     }
-    
-    const updateUser = await this.userRepository.updateUser(userId, updateData);
 
+    const updateUser = await this.userRepository.update(userId, updateData);
     return updateUser;
   }
 
   async setBlockStatus(id: string, isBlocked: boolean) {
-    const user = await this.findUser(id);
-    
-    if (user.isBlocked === isBlocked) {
+    const updatedUser = await this.userRepository.update(
+      id,
+      { isBlocked },
+      { isBlocked: isBlocked ? false : true },
+    );
+
+    if (!updatedUser) {
       const status = isBlocked ? 'blocked' : 'unblocked';
       throw new BadRequestException(`User is already ${status}`);
     }
-    const updatedUser = await this.userRepository.updateUser(id, {
-      isBlocked,
-    });
+
     return updatedUser;
   }
 
-  async deleteUser(userId: string , user: RequestUser) {
+  async deleteUser(userId: string, user: RequestUser) {
     this.userHasAccess(user, userId);
-    await this.findUser(userId);
-    const deletedUser = await this.userRepository.deleteUser(userId);
-    return deletedUser;
+
+    const result = await this.userRepository.delete(userId);
+
+    if (!result || result.numDeletedRows === 0) {
+      throw new NotFoundException(`User with id ${userId} not found`);
+    }
+
+    return result;
   }
 
   private userHasAccess(user: RequestUser, targetUserId: string) {
@@ -87,5 +93,4 @@ export class UserService {
       throw new BadRequestException(`User with email ${email} already exists`);
     }
   }
-
 }

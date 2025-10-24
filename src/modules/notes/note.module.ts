@@ -3,7 +3,7 @@ import { NoteController } from './controllers/note.controller';
 import { NoteService } from './services/note.service';
 import { NoteRepository } from './repositories/note.repository';
 import { DatabaseModule } from 'src/database/db.module';
-import { JwtConfigModule } from 'src/common/config/jwt-config.module';
+import { JwtConfigModule } from 'src/modules/jwt/jwt-config.module';
 
 @Module({
   imports: [DatabaseModule, JwtConfigModule],
